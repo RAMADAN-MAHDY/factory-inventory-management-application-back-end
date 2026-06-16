@@ -1,0 +1,16 @@
+.env
+node_modules/
+.env.test
+.DS_Store
+dist
+dist-ssr
+*.local
+.cache/
+.parcel-cache/
+.next
+.nuxt
+.vuepress/dist
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
