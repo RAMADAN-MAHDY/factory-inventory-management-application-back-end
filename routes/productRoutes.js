@@ -9,6 +9,7 @@ import {
 import { protect, isOwner, isManager } from '../middleware/authMiddleware.js';
 const router = express.Router();
   
+router.get('/query', protect, getProducts);
 router.get('/search', protect, getProducts);
 
 router.route('/')

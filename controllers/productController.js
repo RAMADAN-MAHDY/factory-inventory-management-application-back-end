@@ -7,14 +7,14 @@ const getProducts = async (req, res) => {
   try {
     // Pagination
     const page = Math.max(Number(req.query.page) || 1, 1);
-    const limit = Math.min(Number(req.query.limit) || 10, 100);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
     const skip = (page - 1) * limit;
 
     // Search
     const rawSearch =
-      typeof req.query.search === "string"
+      typeof req.query.search === 'string'
         ? req.query.search.trim()
-        : "";
+        : '';
 
     const search = rawSearch.slice(0, 100);
 
@@ -23,34 +23,46 @@ const getProducts = async (req, res) => {
     if (search) {
       filter.name = {
         $regex: escapeRegex(search),
-        $options: "i",
+        $options: 'i',
       };
     }
 
-    // Total count
-    const total = await Product.countDocuments(filter);
+    const [result] = await Product.aggregate([
+      { $match: filter },
+      { $addFields: { isCritical: { $lte: ['$quantity', '$criticalThreshold'] } } },
+      { $sort: { isCritical: -1, quantity: 1, _id: -1 } },
+      {
+        $project: {
+          isCritical: 0,
+          logs: 0,
+        },
+      },
+      {
+        $facet: {
+          products: [{ $skip: skip }, { $limit: limit }],
+          meta: [{ $count: 'total' }],
+        },
+      },
+    ]);
 
-    // Get products
-    const products = await Product.find(filter)
-      .sort({ quantity: 1, _id: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const products = result?.products ?? [];
+    const total = result?.meta?.[0]?.total ?? 0;
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
 
     res.status(200).json({
       products,
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
-      hasNextPage: page < Math.ceil(total / limit),
+      totalPages,
+      hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Server error",
+      message: 'Server error',
     });
   }
 };
