@@ -2,22 +2,60 @@ import Product from '../models/Product.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+
 const getProducts = async (req, res) => {
   try {
-    const rawSearch = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    // Pagination
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Number(req.query.limit) || 10, 100);
+    const skip = (page - 1) * limit;
+
+    // Search
+    const rawSearch =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : "";
+
     const search = rawSearch.slice(0, 100);
 
     const filter = {};
+
     if (search) {
-      filter.name = { $regex: escapeRegex(search), $options: 'i' };
+      filter.name = {
+        $regex: escapeRegex(search),
+        $options: "i",
+      };
     }
 
-    const products = await Product.find(filter).sort({ quantity: 1, _id: -1 }).lean();
-    res.json(products);
+    // Total count
+    const total = await Product.countDocuments(filter);
+
+    // Get products
+    const products = await Product.find(filter)
+      .sort({ quantity: 1, _id: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.status(200).json({
+      products,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 };
+
+
 
 const createProduct = async (req, res) => {
   const product = new Product(req.body);

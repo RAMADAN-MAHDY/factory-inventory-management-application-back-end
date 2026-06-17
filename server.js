@@ -7,9 +7,17 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
-
+import CORS from 'cors';
 dotenv.config();
 connectDB();
+
+const corsOptions = {
+  origin: '*',
+  methods: 'GET, POST, PUT, DELETE, OPTIONS',
+  allowedHeaders: 'Content-Type, Authorization',
+};
+
+const corsMiddleware = CORS(corsOptions);
 
 const app = express();
 const server = http.createServer(app);
@@ -20,7 +28,7 @@ const io = new Server(server, {
 // Make io available to controllers
 app.set('io', io);
 
-app.use(cors());
+app.use(corsMiddleware);
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
